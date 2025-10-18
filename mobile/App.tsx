@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  View,
   Text,
   TextInput,
   Button,
@@ -8,17 +9,24 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // ✅ recommended SafeAreaView
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useForm, Controller } from "react-hook-form";
 import dayjs from "dayjs";
-import { api } from "./src/lib/api"; // reads EXPO_PUBLIC_API_URL from mobile/.env
+import { api } from "./src/lib/api"; // uses EXPO_PUBLIC_API_URL from mobile/.env
 
 type FormValues = {
   sleepHours?: string;
   mood?: string;
   waterMl?: string;
   hotFlashCount?: string;
+  nightSweats?: boolean;
+  drynessLevel?: string;   // we'll convert to number
+  glycineMg?: string;      // we'll convert to number
+  magnesiumMg?: string;    // we'll convert to number
+  collagen?: boolean;
+  omega3?: boolean;
 };
 
 export default function App() {
@@ -28,6 +36,12 @@ export default function App() {
       mood: "",
       waterMl: "",
       hotFlashCount: "",
+      nightSweats: false,
+      drynessLevel: "",
+      glycineMg: "",
+      magnesiumMg: "",
+      collagen: false,
+      omega3: false,
     },
   });
 
@@ -42,6 +56,14 @@ export default function App() {
         },
         menopause: {
           hotFlashCount: values.hotFlashCount ? Number(values.hotFlashCount) : undefined,
+          nightSweats: values.nightSweats ?? undefined,
+          drynessLevel: values.drynessLevel !== "" ? Number(values.drynessLevel) : undefined,
+        },
+        supplements: {
+          glycineMg: values.glycineMg !== "" ? Number(values.glycineMg) : undefined,
+          magnesiumMg: values.magnesiumMg !== "" ? Number(values.magnesiumMg) : undefined,
+          collagen: values.collagen ?? undefined,
+          omega3: values.omega3 ?? undefined,
         },
       };
 
@@ -87,7 +109,7 @@ export default function App() {
             )}
           />
 
-          <Text style={styles.label}>Mood (1-5)</Text>
+          <Text style={styles.label}>Mood (1–5)</Text>
           <Controller
             control={control}
             name="mood"
@@ -135,6 +157,90 @@ export default function App() {
             )}
           />
 
+          <Text style={styles.label}>Night Sweats</Text>
+          <Controller
+            control={control}
+            name="nightSweats"
+            render={({ field: { onChange, value } }) => (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Switch value={!!value} onValueChange={onChange} />
+                <Text>{value ? "Yes" : "No"}</Text>
+              </View>
+            )}
+          />
+
+          <Text style={styles.label}>Dryness Level (0–5)</Text>
+          <Controller
+            control={control}
+            name="drynessLevel"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                keyboardType="number-pad"
+                style={styles.input}
+                placeholder="0 to 5"
+                value={value}
+                onChangeText={onChange}
+                returnKeyType="done"
+              />
+            )}
+          />
+
+          <Text style={styles.subtitle}>Supplements</Text>
+
+          <Text style={styles.label}>Glycine (mg)</Text>
+          <Controller
+            control={control}
+            name="glycineMg"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                keyboardType="number-pad"
+                style={styles.input}
+                placeholder="e.g., 3000"
+                value={value}
+                onChangeText={onChange}
+                returnKeyType="done"
+              />
+            )}
+          />
+
+          <Text style={styles.label}>Magnesium (mg)</Text>
+          <Controller
+            control={control}
+            name="magnesiumMg"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                keyboardType="number-pad"
+                style={styles.input}
+                placeholder="e.g., 200"
+                value={value}
+                onChangeText={onChange}
+                returnKeyType="done"
+              />
+            )}
+          />
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+            <Text style={styles.label}>Collagen</Text>
+            <Controller
+              control={control}
+              name="collagen"
+              render={({ field: { onChange, value } }) => (
+                <Switch value={!!value} onValueChange={onChange} />
+              )}
+            />
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+            <Text style={styles.label}>Omega-3</Text>
+            <Controller
+              control={control}
+              name="omega3"
+              render={({ field: { onChange, value } }) => (
+                <Switch value={!!value} onValueChange={onChange} />
+              )}
+            />
+          </View>
+
           <Button title="Save Today" onPress={handleSubmit(onSubmit)} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -145,6 +251,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { padding: 20, paddingTop: 60, gap: 12 },
   title: { fontSize: 24, fontWeight: "600", marginBottom: 8, textAlign: "center" },
+  subtitle: { fontSize: 18, fontWeight: "600", marginTop: 16, marginBottom: 4 },
   label: { fontSize: 16, fontWeight: "500", marginTop: 8 },
   input: {
     borderWidth: 1,
