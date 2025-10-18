@@ -1,8 +1,14 @@
 import express, { Request, Response } from "express";
 import mongoose from "mongoose";
 import "dotenv/config";   // loads .env automatically
+import { dailyRouter } from "./routes/daily";  // ✅ add this
 
 const app = express();
+
+app.use(express.json());           // ✅ allow JSON in requests
+app.use(express.urlencoded({ extended: true })); // ✅ (optional) form posts
+
+app.use("/daily", dailyRouter);  // ✅ mount routes at /daily
 
 app.get("/", (_req: Request, res: Response) => {
   res.send("Hello from Balanced Life backend (TypeScript + MongoDB)!");
