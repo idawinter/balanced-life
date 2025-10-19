@@ -311,17 +311,8 @@ export default function App() {
               {!loading &&
                 !error &&
                 history.map((item: any) => (
-                  <View
-                    key={item._id ?? item.date}
-                    style={{
-                      padding: 12,
-                      marginVertical: 6,
-                      borderWidth: 1,
-                      borderColor: "#ddd",
-                      borderRadius: 8,
-                      backgroundColor: "white",
-                    }}
-                  >
+                  <View key={item._id ?? item.date} style={styles.card}>
+
                     <Text style={{ fontWeight: "600" }}>{item.date}</Text>
                     <Text>Sleep: {item.metrics?.sleepHours ?? "-"}</Text>
                     <Text>Mood: {item.metrics?.mood ?? "-"}</Text>
@@ -352,4 +343,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "white",
   },
+  card: {
+    padding: 12,
+    marginVertical: 6,
+    borderWidth: 2,
+    borderColor: "#bbb",
+    borderRadius: 8,
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2, // Android shadow
+  },
 });
+
