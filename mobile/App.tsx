@@ -49,6 +49,7 @@ export default function App() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (view !== "history") return;
@@ -105,6 +106,7 @@ export default function App() {
 
       const res = await api.post(`/daily/${date}`, payload);
       if (res.data?.ok) {
+        setLastSavedAt(dayjs().format("h:mm A"));
         Alert.alert("Saved!", "Your entry was saved.");
         reset();
       } else {
@@ -290,6 +292,11 @@ export default function App() {
               </View>
 
               <Button title="Save Today" onPress={handleSubmit(onSubmit)} />
+              {lastSavedAt && (
+                <Text style={{ textAlign: "center", marginTop: 8 }}>
+                  Saved at {lastSavedAt}
+                </Text>
+              )}
             </>
           ) : (
             // HISTORY LIST
