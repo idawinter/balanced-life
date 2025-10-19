@@ -52,10 +52,15 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
+  const [chartMetric, setChartMetric] = useState<"sleep" | "mood">("sleep");
+
   const screenWidth = Dimensions.get("window").width - 40; // padding margins
   const points = [...history].reverse(); // oldest -> newest for left-to-right chart
   const labels = points.map((it) => dayjs(it.date).format("MM/DD"));
-  const sleepData = points.map((it) => (it.metrics?.sleepHours ?? 0));
+  const sleepData = points.map((it) => it?.metrics?.sleepHours ?? 0);
+  const moodData = points.map((it) => it?.metrics?.mood ?? 0);
+  const series = chartMetric === "sleep" ? sleepData : moodData; // (we'll use this next)
 
   useEffect(() => {
     if (view !== "history") return;
@@ -309,21 +314,28 @@ export default function App() {
             <>
             {!loading && !error && history.length > 0 && (
               <View style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: "row", justifyContent: "center", gap: 12,  marginBottom: 8 }}>
+                  <Button title="Sleep" onPress={() => setChartMetric("sleep")} />
+                  <Button title="Mood" onPress={() => setChartMetric("mood")} />
+                </View>
+
                 <Text style={{ textAlign: "center", marginBottom: 8, fontWeight: "600" }}>
-                  Sleep Hours (last 14 days)
+                  {chartMetric === "sleep" ? "Sleep Hours" : "Mood (1–5)"} (last 14 days)
                 </Text>
+
                 <LineChart
                   data={{
                     labels,
-                    datasets: [{ data: sleepData }],
+                    datasets: [{ data: series }],
                   }}
+                  
                   width={screenWidth}
                   height={200}
                   chartConfig={{
                     backgroundColor: "#ffffff",
                     backgroundGradientFrom: "#ffffff",
                     backgroundGradientTo: "#ffffff",
-                    decimalPlaces: 1,
+                    decimalPlaces: chartMetric === "sleep" ? 1 : 0,
                     color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
                     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
                     propsForDots: { r: "3" },
