@@ -15,6 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useForm, Controller } from "react-hook-form";
 import dayjs from "dayjs";
 import { api } from "./src/lib/api"; // uses EXPO_PUBLIC_API_URL from mobile/.env
+import { LineChart } from "react-native-chart-kit";
+import { Dimensions } from "react-native";
 
 type FormValues = {
   sleepHours?: string;
@@ -50,6 +52,10 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const screenWidth = Dimensions.get("window").width - 40; // padding margins
+  const points = [...history].reverse(); // oldest -> newest for left-to-right chart
+  const labels = points.map((it) => dayjs(it.date).format("MM/DD"));
+  const sleepData = points.map((it) => (it.metrics?.sleepHours ?? 0));
 
   useEffect(() => {
     if (view !== "history") return;
@@ -301,6 +307,35 @@ export default function App() {
           ) : (
             // HISTORY LIST
             <>
+            {!loading && !error && history.length > 0 && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ textAlign: "center", marginBottom: 8, fontWeight: "600" }}>
+                  Sleep Hours (last 14 days)
+                </Text>
+                <LineChart
+                  data={{
+                    labels,
+                    datasets: [{ data: sleepData }],
+                  }}
+                  width={screenWidth}
+                  height={200}
+                  chartConfig={{
+                    backgroundColor: "#ffffff",
+                    backgroundGradientFrom: "#ffffff",
+                    backgroundGradientTo: "#ffffff",
+                    decimalPlaces: 1,
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    propsForDots: { r: "3" },
+                  }}
+                  withInnerLines={true}
+                  withOuterLines={true}
+                  bezier
+                  style={{ alignSelf: "center", borderRadius: 8 }}
+                />
+              </View>
+            )}
+
               {loading && <Text>Loading…</Text>}
               {error && <Text style={{ color: "red" }}>{error}</Text>}
 
