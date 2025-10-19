@@ -72,7 +72,7 @@ dailyRouter.post("/:date", async (req: Request, res: Response) => {
     res.json({ ok: true, data: doc });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ ok: false, error: "ValidationError", details: err.errors });
+      return res.status(400).json({ ok: false, error: "ValidationError", details: err.issues });
     }
     console.error(err);
     res.status(500).json({ ok: false, error: "ServerError" });
@@ -85,8 +85,8 @@ dailyRouter.post("/:date", async (req: Request, res: Response) => {
  */
 dailyRouter.get("/", async (req: Request, res: Response) => {
   try {
-    const from = dateParamSchema.parse(req.query.from);
-    const to = dateParamSchema.parse(req.query.to);
+    const from = dateParamSchema.parse(String(req.query.from));
+    const to = dateParamSchema.parse(String(req.query.to));
 
     const data = await DailyMetrics.find({
       userId: FAKE_USER_ID,
@@ -96,7 +96,7 @@ dailyRouter.get("/", async (req: Request, res: Response) => {
     res.json({ ok: true, count: data.length, data });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ ok: false, error: "ValidationError", details: err.errors });
+      return res.status(400).json({ ok: false, error: "ValidationError", details: err.issues });
     }
     console.error(err);
     res.status(500).json({ ok: false, error: "ServerError" });
