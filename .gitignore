@@ -1,0 +1,15 @@
+
+# --- ignores ---
+# env files
+.env
+.env.*
+server/.env
+mobile/.env
+
+# node_modules
+node_modules/
+server/node_modules/
+mobile/node_modules/
+
+# build outputs
+server/dist/
