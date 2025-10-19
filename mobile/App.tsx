@@ -63,10 +63,14 @@ export default function App() {
 
         const res = await api.get(`/daily?from=${from}&to=${to}`);
         if (res.data?.ok && Array.isArray(res.data.data)) {
-          setHistory(res.data.data);
+          const sorted = [...res.data.data].sort((a, b) =>
+            a.date < b.date ? 1 : a.date > b.date ? -1 : 0
+          );
+          setHistory(sorted);
         } else {
           setError("Server did not return a valid list.");
         }
+        
       } catch (e: any) {
         setError(e?.message ?? "Failed to fetch history.");
       } finally {
