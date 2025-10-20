@@ -18,6 +18,13 @@ import { api } from "./src/lib/api"; // uses EXPO_PUBLIC_API_URL from mobile/.en
 import { LineChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
 import { saveUserId, getUserId, clearUserId } from "./src/lib/session";
+import { theme } from "./src/theme";
+import { Button as FancyButton } from "./src/ui/Button";
+import { LabeledInput } from "./src/ui/LabeledInput";
+import { SectionCard } from "./src/ui/SectionCard";
+import { Header } from "./src/ui/Header";
+import { EmptyState } from "./src/ui/EmptyState";
+import { LoginHero } from "./src/ui/LoginHero";
 
 type FormValues = {
   sleepHours?: string;
@@ -169,7 +176,7 @@ export default function App() {
   };  
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -179,211 +186,228 @@ export default function App() {
           contentContainerStyle={[styles.container, { paddingBottom: 40 }]}
           keyboardShouldPersistTaps="handled"
         >
-          {authLoading ? (
+ 
+        {authLoading ? (
           // 1) While we check AsyncStorage for a saved userId
           <Text>Loading…</Text>
         ) : !userId ? (
-          // 2) No user yet → show Login
+          // 2) No user yet → show Login (hero + card)
           <>
-            <Text style={styles.title}>Balanced Life — Sign In</Text>
+          <View style={{ height: 16 }} />
 
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
+            <LoginHero
+              title="Balanced Life"
+              tagline="Track menopause symptoms and daily habits — see patterns that help you feel better."
             />
 
-            <Button title="Continue" onPress={handleLogin} />
+            <SectionCard title="Sign in to continue">
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <FancyButton title="Continue" onPress={handleLogin} />
+            </SectionCard>
           </>
         ) : (
           // 3) Logged in → show your existing app UI (PASTE your current content here)
           <>
             {/* Toggle */}
-            <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 8 }}>
-              <Button title="Today" onPress={() => setView("today")} />
-              <Button title="History" onPress={() => setView("history")} />
+            <View style={styles.toggleRow}>
+              <FancyButton
+                title="Today"
+                variant={view === "today" ? "primary" : "outline"}
+                onPress={() => setView("today")}
+              />
+              <View style={{ width: 12 }} />
+              <FancyButton
+                title="History"
+                variant={view === "history" ? "primary" : "outline"}
+                onPress={() => setView("history")}
+              />
             </View>
 
-            {/* Title */}
-            <Text style={styles.title}>
-              {view === "today" ? "Balanced Life — Today" : "Balanced Life — History"}
-            </Text>
 
             {/* TODAY FORM */}
             {view === "today" ? (
               <>
-                <Text style={styles.label}>Sleep Hours</Text>
-                <Controller
-                  control={control}
-                  name="sleepHours"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      keyboardType="decimal-pad"
-                      style={styles.input}
-                      placeholder="e.g., 7.5"
-                      value={value}
-                      onChangeText={onChange}
-                      returnKeyType="done"
-                    />
-                  )}
-                />
-
-                <Text style={styles.label}>Mood (1–5)</Text>
-                <Controller
-                  control={control}
-                  name="mood"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      keyboardType="number-pad"
-                      style={styles.input}
-                      placeholder="1 to 5"
-                      value={value}
-                      onChangeText={onChange}
-                      returnKeyType="done"
-                    />
-                  )}
-                />
-
-                <Text style={styles.label}>Water (ml)</Text>
-                <Controller
-                  control={control}
-                  name="waterMl"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      keyboardType="number-pad"
-                      style={styles.input}
-                      placeholder="e.g., 1800"
-                      value={value}
-                      onChangeText={onChange}
-                      returnKeyType="done"
-                    />
-                  )}
-                />
-
-                <Text style={styles.label}>Hot Flashes (count)</Text>
-                <Controller
-                  control={control}
-                  name="hotFlashCount"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      keyboardType="number-pad"
-                      style={styles.input}
-                      placeholder="e.g., 2"
-                      value={value}
-                      onChangeText={onChange}
-                      returnKeyType="done"
-                    />
-                  )}
-                />
-
-                <Text style={styles.label}>Night Sweats</Text>
-                <Controller
-                  control={control}
-                  name="nightSweats"
-                  render={({ field: { onChange, value } }) => (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                      <Switch value={!!value} onValueChange={onChange} />
-                      <Text>{value ? "Yes" : "No"}</Text>
-                    </View>
-                  )}
-                />
-
-                <Text style={styles.label}>Dryness Level (0–5)</Text>
-                <Controller
-                  control={control}
-                  name="drynessLevel"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      keyboardType="number-pad"
-                      style={styles.input}
-                      placeholder="0 to 5"
-                      value={value}
-                      onChangeText={onChange}
-                      returnKeyType="done"
-                    />
-                  )}
-                />
-
-                <Text style={styles.subtitle}>Supplements</Text>
-
-                <Text style={styles.label}>Glycine (mg)</Text>
-                <Controller
-                  control={control}
-                  name="glycineMg"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      keyboardType="number-pad"
-                      style={styles.input}
-                      placeholder="e.g., 3000"
-                      value={value}
-                      onChangeText={onChange}
-                      returnKeyType="done"
-                    />
-                  )}
-                />
-
-                <Text style={styles.label}>Magnesium (mg)</Text>
-                <Controller
-                  control={control}
-                  name="magnesiumMg"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      keyboardType="number-pad"
-                      style={styles.input}
-                      placeholder="e.g., 200"
-                      value={value}
-                      onChangeText={onChange}
-                      returnKeyType="done"
-                    />
-                  )}
-                />
-
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-                  <Text style={styles.label}>Collagen</Text>
+                <SectionCard title="Basics">
                   <Controller
                     control={control}
-                    name="collagen"
+                    name="sleepHours"
                     render={({ field: { onChange, value } }) => (
-                      <Switch value={!!value} onValueChange={onChange} />
+                      <LabeledInput
+                        label="Sleep Hours"
+                        keyboardType="decimal-pad"
+                        placeholder="e.g., 7.5"
+                        value={value}
+                        onChangeText={onChange}
+                        returnKeyType="done"
+                      />
                     )}
                   />
-                </View>
 
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-                  <Text style={styles.label}>Omega-3</Text>
                   <Controller
                     control={control}
-                    name="omega3"
+                    name="mood"
                     render={({ field: { onChange, value } }) => (
-                      <Switch value={!!value} onValueChange={onChange} />
+                      <LabeledInput
+                        label="Mood (1–5)"
+                        keyboardType="number-pad"
+                        placeholder="1 to 5"
+                        value={value}
+                        onChangeText={onChange}
+                        returnKeyType="done"
+                      />
                     )}
                   />
-                </View>
 
-                <Button title="Save Today" onPress={handleSubmit(onSubmit)} />
-                {lastSavedAt && (
-                  <Text style={{ textAlign: "center", marginTop: 8 }}>
-                    Saved at {lastSavedAt}
-                  </Text>
-                )}
+                  <Controller
+                    control={control}
+                    name="waterMl"
+                    render={({ field: { onChange, value } }) => (
+                      <LabeledInput
+                        label="Water (ml)"
+                        keyboardType="number-pad"
+                        placeholder="e.g., 1800"
+                        value={value}
+                        onChangeText={onChange}
+                        returnKeyType="done"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="hotFlashCount"
+                    render={({ field: { onChange, value } }) => (
+                      <LabeledInput
+                        label="Hot Flashes (count)"
+                        keyboardType="number-pad"
+                        placeholder="e.g., 2"
+                        value={value}
+                        onChangeText={onChange}
+                        returnKeyType="done"
+                      />
+                    )}
+                  />
+
+                  {/* Night sweats toggle */}
+                  <Text style={styles.label}>Night Sweats</Text>
+                  <Controller
+                    control={control}
+                    name="nightSweats"
+                    render={({ field: { onChange, value } }) => (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                        <Switch value={!!value} onValueChange={onChange} />
+                        <Text>{value ? "Yes" : "No"}</Text>
+                      </View>
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="drynessLevel"
+                    render={({ field: { onChange, value } }) => (
+                      <LabeledInput
+                        label="Dryness Level (0–5)"
+                        keyboardType="number-pad"
+                        placeholder="0 to 5"
+                        value={value}
+                        onChangeText={onChange}
+                        returnKeyType="done"
+                      />
+                    )}
+                  />
+                </SectionCard>
+
+                <SectionCard title="Supplements">
+                  <Controller
+                    control={control}
+                    name="glycineMg"
+                    render={({ field: { onChange, value } }) => (
+                      <LabeledInput
+                        label="Glycine (mg)"
+                        keyboardType="number-pad"
+                        placeholder="e.g., 3000"
+                        value={value}
+                        onChangeText={onChange}
+                        returnKeyType="done"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="magnesiumMg"
+                    render={({ field: { onChange, value } }) => (
+                      <LabeledInput
+                        label="Magnesium (mg)"
+                        keyboardType="number-pad"
+                        placeholder="e.g., 200"
+                        value={value}
+                        onChangeText={onChange}
+                        returnKeyType="done"
+                      />
+                    )}
+                  />
+
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <Text style={styles.label}>Collagen</Text>
+                    <Controller
+                      control={control}
+                      name="collagen"
+                      render={({ field: { onChange, value } }) => (
+                        <Switch value={!!value} onValueChange={onChange} />
+                      )}
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <Text style={styles.label}>Omega-3</Text>
+                    <Controller
+                      control={control}
+                      name="omega3"
+                      render={({ field: { onChange, value } }) => (
+                        <Switch value={!!value} onValueChange={onChange} />
+                      )}
+                    />
+                  </View>
+
+                  <View style={styles.hr} />
+
+                  <FancyButton title="Save Today" onPress={handleSubmit(onSubmit)} />
+                  {lastSavedAt && (
+                    <Text style={{ textAlign: "center", marginTop: 8 }}>
+                      Saved at {lastSavedAt}
+                    </Text>
+                  )}
+
+                </SectionCard>
+
               </>
             ) : (
               // HISTORY LIST
               <>
                 {!loading && !error && history.length > 0 && (
-                  <View style={{ marginBottom: 16 }}>
+                  <SectionCard title={chartMetric === "sleep" ? "Sleep Hours (last 14 days)" : "Mood (last 14 days)"}>
                     <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 8 }}>
-                      <Button title="Sleep" onPress={() => setChartMetric("sleep")} />
-                      <Button title="Mood" onPress={() => setChartMetric("mood")} />
+                      <FancyButton
+                        title="Sleep"
+                        variant={chartMetric === "sleep" ? "primary" : "outline"}
+                        onPress={() => setChartMetric("sleep")}
+                      />
+                      <FancyButton
+                        title="Mood"
+                        variant={chartMetric === "mood" ? "primary" : "outline"}
+                        onPress={() => setChartMetric("mood")}
+                      />
                     </View>
-
-                    <Text style={{ textAlign: "center", marginBottom: 8, fontWeight: "600" }}>
-                      {chartMetric === "sleep" ? "Sleep Hours" : "Mood (1–5)"} (last 14 days)
-                    </Text>
 
                     <LineChart
                       data={{ labels, datasets: [{ data: series }] }}
@@ -403,15 +427,20 @@ export default function App() {
                       bezier
                       style={{ alignSelf: "center", borderRadius: 8 }}
                     />
-                  </View>
+                  </SectionCard>
                 )}
 
                 {loading && <Text>Loading…</Text>}
                 {error && <Text style={{ color: "red" }}>{error}</Text>}
 
                 {!loading && !error && history.length === 0 && (
-                  <Text>No entries found for the last 14 days.</Text>
+                  <EmptyState
+                    title="Nothing to chart yet"
+                    message="Add your first daily entry on the Today tab and your trends will appear here."
+                  />
                 )}
+
+                <View style={styles.hr} />
 
                 {!loading &&
                   !error &&
@@ -428,15 +457,6 @@ export default function App() {
                   ))}
               </>
             )}
-
-            {/* Optional: logout button for testing */}
-            <View style={{ marginTop: 16 }}>
-              <Button title="Log out (testing)" onPress={handleLogout} />
-            </View>
-
-            <Text style={{ textAlign: "center", marginTop: 8, opacity: 0.6, fontSize: 12 }}>
-              Backend: {apiBase}
-            </Text>
           </>
         )}
 
@@ -447,30 +467,53 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, paddingTop: 60, gap: 12 },
-  title: { fontSize: 24, fontWeight: "600", marginBottom: 8, textAlign: "center" },
-  subtitle: { fontSize: 18, fontWeight: "600", marginTop: 16, marginBottom: 4 },
-  label: { fontSize: 16, fontWeight: "500", marginTop: 8 },
+  container: { padding: 20, paddingTop: 30, gap: 12 },
+  title: { 
+    fontSize: 28,            // a little larger
+    fontWeight: "700", 
+    marginBottom: 12, 
+    textAlign: "center",
+    color: theme.colors.textPrimary,
+  },
+  subtitle: { 
+    fontSize: 18, 
+    fontWeight: "600", 
+    marginTop: 16, 
+    marginBottom: 6,
+    color: theme.colors.textPrimary,
+  },
+  label: { 
+    fontSize: 15, 
+    fontWeight: "500", 
+    marginTop: 8,
+    color: theme.colors.textSecondary,
+  },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.md,
+    padding: 12,
     fontSize: 16,
-    backgroundColor: "white",
+    backgroundColor: theme.colors.card,
   },
   card: {
-    padding: 12,
+    padding: 14,
     marginVertical: 6,
-    borderWidth: 2,
-    borderColor: "#bbb",
-    borderRadius: 8,
-    backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2, // Android shadow
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.lg,
+    backgroundColor: theme.colors.card,
+    ...theme.shadow,
   },
+  hr: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: 12,
+    opacity: 0.6,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 12,
+  },  
 });
-
