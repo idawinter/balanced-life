@@ -3,10 +3,6 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { DailyMetrics } from "../models/DailyMetrics";
 
-// For now, we’ll fake a single user id.
-// Later, auth will set this automatically.
-const FAKE_USER_ID = "demo-user-1";
-
 // --- Validation schemas (Zod) ---
 const metricsSchema = z.object({
   steps: z.number().int().nonnegative().optional(),
@@ -64,8 +60,8 @@ dailyRouter.post("/:date", async (req: Request, res: Response) => {
     const body = bodySchema.parse(req.body);
 
     const doc = await DailyMetrics.findOneAndUpdate(
-      { userId: FAKE_USER_ID, date },
-      { userId: FAKE_USER_ID, date, ...body },
+      { userId: req.userId!, date },
+      { userId: req.userId!, date, ...body },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -89,7 +85,7 @@ dailyRouter.get("/", async (req: Request, res: Response) => {
     const to = dateParamSchema.parse(String(req.query.to));
 
     const data = await DailyMetrics.find({
-      userId: FAKE_USER_ID,
+      userId: req.userId!,
       date: { $gte: from, $lte: to },
     }).sort({ date: 1 });
 
