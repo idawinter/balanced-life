@@ -17,6 +17,7 @@ import dayjs from "dayjs";
 import { api } from "./src/lib/api"; // uses EXPO_PUBLIC_API_URL from mobile/.env
 import { LineChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
+import { saveUserId, getUserId, clearUserId } from "./src/lib/session";
 
 type FormValues = {
   sleepHours?: string;
@@ -55,12 +56,26 @@ export default function App() {
 
   const [chartMetric, setChartMetric] = useState<"sleep" | "mood">("sleep");
 
+  const [userId, setUserId] = useState<string | null>(null);
+  const [email, setEmail] = useState<string>("");
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+
+  const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "(unknown)";
+
   const screenWidth = Dimensions.get("window").width - 40; // padding margins
   const points = [...history].reverse(); // oldest -> newest for left-to-right chart
   const labels = points.map((it) => dayjs(it.date).format("MM/DD"));
   const sleepData = points.map((it) => it?.metrics?.sleepHours ?? 0);
   const moodData = points.map((it) => it?.metrics?.mood ?? 0);
   const series = chartMetric === "sleep" ? sleepData : moodData; // (we'll use this next)
+
+  useEffect(() => {
+    (async () => {
+      const id = await getUserId();
+      setUserId(id);
+      setAuthLoading(false);
+    })();
+  }, []);  
 
   useEffect(() => {
     if (view !== "history") return;
@@ -129,6 +144,30 @@ export default function App() {
     }
   };
 
+  const handleLogin = async () => {
+    try {
+      if (!email.includes("@")) {
+        Alert.alert("Invalid email", "Please enter a valid email address.");
+        return;
+      }
+      // Call the server to create/find the user
+      const res = await api.post("/auth/login", { email: email.trim().toLowerCase() });
+      if (res.data?.ok && res.data?.userId) {
+        await saveUserId(res.data.userId);
+        setUserId(res.data.userId);
+      } else {
+        Alert.alert("Login failed", "Could not log in.");
+      }
+    } catch (e: any) {
+      Alert.alert("Login error", e?.message ?? "Something went wrong.");
+    }
+  };  
+
+  const handleLogout = async () => {
+    await clearUserId();
+    setUserId(null);
+  };  
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <KeyboardAvoidingView
@@ -140,237 +179,267 @@ export default function App() {
           contentContainerStyle={[styles.container, { paddingBottom: 40 }]}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Toggle */}
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 8 }}>
-            <Button title="Today" onPress={() => setView("today")} />
-            <Button title="History" onPress={() => setView("history")} />
-          </View>
+          {authLoading ? (
+          // 1) While we check AsyncStorage for a saved userId
+          <Text>Loading…</Text>
+        ) : !userId ? (
+          // 2) No user yet → show Login
+          <>
+            <Text style={styles.title}>Balanced Life — Sign In</Text>
 
-          {/* Title */}
-          <Text style={styles.title}>
-            {view === "today" ? "Balanced Life — Today" : "Balanced Life — History"}
-          </Text>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
 
-          {/* TODAY FORM */}
-          {view === "today" ? (
-            <>
-              <Text style={styles.label}>Sleep Hours</Text>
-              <Controller
-                control={control}
-                name="sleepHours"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    keyboardType="decimal-pad"
-                    style={styles.input}
-                    placeholder="e.g., 7.5"
-                    value={value}
-                    onChangeText={onChange}
-                    returnKeyType="done"
-                  />
-                )}
-              />
+            <Button title="Continue" onPress={handleLogin} />
+          </>
+        ) : (
+          // 3) Logged in → show your existing app UI (PASTE your current content here)
+          <>
+            {/* Toggle */}
+            <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 8 }}>
+              <Button title="Today" onPress={() => setView("today")} />
+              <Button title="History" onPress={() => setView("history")} />
+            </View>
 
-              <Text style={styles.label}>Mood (1–5)</Text>
-              <Controller
-                control={control}
-                name="mood"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    keyboardType="number-pad"
-                    style={styles.input}
-                    placeholder="1 to 5"
-                    value={value}
-                    onChangeText={onChange}
-                    returnKeyType="done"
-                  />
-                )}
-              />
+            {/* Title */}
+            <Text style={styles.title}>
+              {view === "today" ? "Balanced Life — Today" : "Balanced Life — History"}
+            </Text>
 
-              <Text style={styles.label}>Water (ml)</Text>
-              <Controller
-                control={control}
-                name="waterMl"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    keyboardType="number-pad"
-                    style={styles.input}
-                    placeholder="e.g., 1800"
-                    value={value}
-                    onChangeText={onChange}
-                    returnKeyType="done"
-                  />
-                )}
-              />
-
-              <Text style={styles.label}>Hot Flashes (count)</Text>
-              <Controller
-                control={control}
-                name="hotFlashCount"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    keyboardType="number-pad"
-                    style={styles.input}
-                    placeholder="e.g., 2"
-                    value={value}
-                    onChangeText={onChange}
-                    returnKeyType="done"
-                  />
-                )}
-              />
-
-              <Text style={styles.label}>Night Sweats</Text>
-              <Controller
-                control={control}
-                name="nightSweats"
-                render={({ field: { onChange, value } }) => (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                    <Switch value={!!value} onValueChange={onChange} />
-                    <Text>{value ? "Yes" : "No"}</Text>
-                  </View>
-                )}
-              />
-
-              <Text style={styles.label}>Dryness Level (0–5)</Text>
-              <Controller
-                control={control}
-                name="drynessLevel"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    keyboardType="number-pad"
-                    style={styles.input}
-                    placeholder="0 to 5"
-                    value={value}
-                    onChangeText={onChange}
-                    returnKeyType="done"
-                  />
-                )}
-              />
-
-              <Text style={styles.subtitle}>Supplements</Text>
-
-              <Text style={styles.label}>Glycine (mg)</Text>
-              <Controller
-                control={control}
-                name="glycineMg"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    keyboardType="number-pad"
-                    style={styles.input}
-                    placeholder="e.g., 3000"
-                    value={value}
-                    onChangeText={onChange}
-                    returnKeyType="done"
-                  />
-                )}
-              />
-
-              <Text style={styles.label}>Magnesium (mg)</Text>
-              <Controller
-                control={control}
-                name="magnesiumMg"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    keyboardType="number-pad"
-                    style={styles.input}
-                    placeholder="e.g., 200"
-                    value={value}
-                    onChangeText={onChange}
-                    returnKeyType="done"
-                  />
-                )}
-              />
-
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-                <Text style={styles.label}>Collagen</Text>
+            {/* TODAY FORM */}
+            {view === "today" ? (
+              <>
+                <Text style={styles.label}>Sleep Hours</Text>
                 <Controller
                   control={control}
-                  name="collagen"
+                  name="sleepHours"
                   render={({ field: { onChange, value } }) => (
-                    <Switch value={!!value} onValueChange={onChange} />
+                    <TextInput
+                      keyboardType="decimal-pad"
+                      style={styles.input}
+                      placeholder="e.g., 7.5"
+                      value={value}
+                      onChangeText={onChange}
+                      returnKeyType="done"
+                    />
                   )}
                 />
-              </View>
 
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-                <Text style={styles.label}>Omega-3</Text>
+                <Text style={styles.label}>Mood (1–5)</Text>
                 <Controller
                   control={control}
-                  name="omega3"
+                  name="mood"
                   render={({ field: { onChange, value } }) => (
-                    <Switch value={!!value} onValueChange={onChange} />
+                    <TextInput
+                      keyboardType="number-pad"
+                      style={styles.input}
+                      placeholder="1 to 5"
+                      value={value}
+                      onChangeText={onChange}
+                      returnKeyType="done"
+                    />
                   )}
                 />
-              </View>
 
-              <Button title="Save Today" onPress={handleSubmit(onSubmit)} />
-              {lastSavedAt && (
-                <Text style={{ textAlign: "center", marginTop: 8 }}>
-                  Saved at {lastSavedAt}
-                </Text>
-              )}
-            </>
-          ) : (
-            // HISTORY LIST
-            <>
-            {!loading && !error && history.length > 0 && (
-              <View style={{ marginBottom: 16 }}>
-                <View style={{ flexDirection: "row", justifyContent: "center", gap: 12,  marginBottom: 8 }}>
-                  <Button title="Sleep" onPress={() => setChartMetric("sleep")} />
-                  <Button title="Mood" onPress={() => setChartMetric("mood")} />
+                <Text style={styles.label}>Water (ml)</Text>
+                <Controller
+                  control={control}
+                  name="waterMl"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      keyboardType="number-pad"
+                      style={styles.input}
+                      placeholder="e.g., 1800"
+                      value={value}
+                      onChangeText={onChange}
+                      returnKeyType="done"
+                    />
+                  )}
+                />
+
+                <Text style={styles.label}>Hot Flashes (count)</Text>
+                <Controller
+                  control={control}
+                  name="hotFlashCount"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      keyboardType="number-pad"
+                      style={styles.input}
+                      placeholder="e.g., 2"
+                      value={value}
+                      onChangeText={onChange}
+                      returnKeyType="done"
+                    />
+                  )}
+                />
+
+                <Text style={styles.label}>Night Sweats</Text>
+                <Controller
+                  control={control}
+                  name="nightSweats"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <Switch value={!!value} onValueChange={onChange} />
+                      <Text>{value ? "Yes" : "No"}</Text>
+                    </View>
+                  )}
+                />
+
+                <Text style={styles.label}>Dryness Level (0–5)</Text>
+                <Controller
+                  control={control}
+                  name="drynessLevel"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      keyboardType="number-pad"
+                      style={styles.input}
+                      placeholder="0 to 5"
+                      value={value}
+                      onChangeText={onChange}
+                      returnKeyType="done"
+                    />
+                  )}
+                />
+
+                <Text style={styles.subtitle}>Supplements</Text>
+
+                <Text style={styles.label}>Glycine (mg)</Text>
+                <Controller
+                  control={control}
+                  name="glycineMg"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      keyboardType="number-pad"
+                      style={styles.input}
+                      placeholder="e.g., 3000"
+                      value={value}
+                      onChangeText={onChange}
+                      returnKeyType="done"
+                    />
+                  )}
+                />
+
+                <Text style={styles.label}>Magnesium (mg)</Text>
+                <Controller
+                  control={control}
+                  name="magnesiumMg"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      keyboardType="number-pad"
+                      style={styles.input}
+                      placeholder="e.g., 200"
+                      value={value}
+                      onChangeText={onChange}
+                      returnKeyType="done"
+                    />
+                  )}
+                />
+
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+                  <Text style={styles.label}>Collagen</Text>
+                  <Controller
+                    control={control}
+                    name="collagen"
+                    render={({ field: { onChange, value } }) => (
+                      <Switch value={!!value} onValueChange={onChange} />
+                    )}
+                  />
                 </View>
 
-                <Text style={{ textAlign: "center", marginBottom: 8, fontWeight: "600" }}>
-                  {chartMetric === "sleep" ? "Sleep Hours" : "Mood (1–5)"} (last 14 days)
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
+                  <Text style={styles.label}>Omega-3</Text>
+                  <Controller
+                    control={control}
+                    name="omega3"
+                    render={({ field: { onChange, value } }) => (
+                      <Switch value={!!value} onValueChange={onChange} />
+                    )}
+                  />
+                </View>
 
-                <LineChart
-                  data={{
-                    labels,
-                    datasets: [{ data: series }],
-                  }}
-                  
-                  width={screenWidth}
-                  height={200}
-                  chartConfig={{
-                    backgroundColor: "#ffffff",
-                    backgroundGradientFrom: "#ffffff",
-                    backgroundGradientTo: "#ffffff",
-                    decimalPlaces: chartMetric === "sleep" ? 1 : 0,
-                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    propsForDots: { r: "3" },
-                  }}
-                  withInnerLines={true}
-                  withOuterLines={true}
-                  bezier
-                  style={{ alignSelf: "center", borderRadius: 8 }}
-                />
-              </View>
+                <Button title="Save Today" onPress={handleSubmit(onSubmit)} />
+                {lastSavedAt && (
+                  <Text style={{ textAlign: "center", marginTop: 8 }}>
+                    Saved at {lastSavedAt}
+                  </Text>
+                )}
+              </>
+            ) : (
+              // HISTORY LIST
+              <>
+                {!loading && !error && history.length > 0 && (
+                  <View style={{ marginBottom: 16 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 8 }}>
+                      <Button title="Sleep" onPress={() => setChartMetric("sleep")} />
+                      <Button title="Mood" onPress={() => setChartMetric("mood")} />
+                    </View>
+
+                    <Text style={{ textAlign: "center", marginBottom: 8, fontWeight: "600" }}>
+                      {chartMetric === "sleep" ? "Sleep Hours" : "Mood (1–5)"} (last 14 days)
+                    </Text>
+
+                    <LineChart
+                      data={{ labels, datasets: [{ data: series }] }}
+                      width={screenWidth}
+                      height={200}
+                      chartConfig={{
+                        backgroundColor: "#ffffff",
+                        backgroundGradientFrom: "#ffffff",
+                        backgroundGradientTo: "#ffffff",
+                        decimalPlaces: chartMetric === "sleep" ? 1 : 0,
+                        color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                        labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                        propsForDots: { r: "3" },
+                      }}
+                      withInnerLines
+                      withOuterLines
+                      bezier
+                      style={{ alignSelf: "center", borderRadius: 8 }}
+                    />
+                  </View>
+                )}
+
+                {loading && <Text>Loading…</Text>}
+                {error && <Text style={{ color: "red" }}>{error}</Text>}
+
+                {!loading && !error && history.length === 0 && (
+                  <Text>No entries found for the last 14 days.</Text>
+                )}
+
+                {!loading &&
+                  !error &&
+                  history.map((item: any) => (
+                    <View key={item._id ?? item.date} style={styles.card}>
+                      <Text style={{ fontWeight: "600" }}>{item.date}</Text>
+                      <Text>Sleep: {item.metrics?.sleepHours ?? "-"}</Text>
+                      <Text>Mood: {item.metrics?.mood ?? "-"}</Text>
+                      <Text>Water: {item.metrics?.waterMl ?? "-"}</Text>
+                      <Text>Hot flashes: {item.menopause?.hotFlashCount ?? "-"}</Text>
+                      <Text>Night sweats: {item.menopause?.nightSweats ? "Yes" : "No"}</Text>
+                      <Text>Dryness: {item.menopause?.drynessLevel ?? "-"}</Text>
+                    </View>
+                  ))}
+              </>
             )}
 
-              {loading && <Text>Loading…</Text>}
-              {error && <Text style={{ color: "red" }}>{error}</Text>}
+            {/* Optional: logout button for testing */}
+            <View style={{ marginTop: 16 }}>
+              <Button title="Log out (testing)" onPress={handleLogout} />
+            </View>
 
-              {!loading && !error && history.length === 0 && (
-                <Text>No entries found for the last 14 days.</Text>
-              )}
+            <Text style={{ textAlign: "center", marginTop: 8, opacity: 0.6, fontSize: 12 }}>
+              Backend: {apiBase}
+            </Text>
+          </>
+        )}
 
-              {!loading &&
-                !error &&
-                history.map((item: any) => (
-                  <View key={item._id ?? item.date} style={styles.card}>
-
-                    <Text style={{ fontWeight: "600" }}>{item.date}</Text>
-                    <Text>Sleep: {item.metrics?.sleepHours ?? "-"}</Text>
-                    <Text>Mood: {item.metrics?.mood ?? "-"}</Text>
-                    <Text>Water: {item.metrics?.waterMl ?? "-"}</Text>
-                    <Text>Hot flashes: {item.menopause?.hotFlashCount ?? "-"}</Text>
-                    <Text>Night sweats: {item.menopause?.nightSweats ? "Yes" : "No"}</Text>
-                    <Text>Dryness: {item.menopause?.drynessLevel ?? "-"}</Text>
-                  </View>
-                ))}
-            </>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
