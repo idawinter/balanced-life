@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   Alert,
   StyleSheet,
   ScrollView,
@@ -25,6 +24,7 @@ import { SectionCard } from "./src/ui/SectionCard";
 import { Header } from "./src/ui/Header";
 import { EmptyState } from "./src/ui/EmptyState";
 import { LoginHero } from "./src/ui/LoginHero";
+import { ActivityIndicator } from "react-native";
 
 type FormValues = {
   sleepHours?: string;
@@ -66,6 +66,8 @@ export default function App() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string>("");
   const [authLoading, setAuthLoading] = useState<boolean>(true);
+
+  const [saving, setSaving] = useState(false);
 
   const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "(unknown)";
 
@@ -109,6 +111,7 @@ export default function App() {
         setError(e?.message ?? "Failed to fetch history.");
       } finally {
         setLoading(false);
+        setSaving(false);
       }
     };
 
@@ -117,6 +120,8 @@ export default function App() {
 
   const onSubmit = async (values: FormValues) => {
     try {
+      setSaving(true);
+  
       const date = dayjs().format("YYYY-MM-DD");
       const payload = {
         metrics: {
@@ -136,7 +141,7 @@ export default function App() {
           omega3: values.omega3 ?? undefined,
         },
       };
-
+  
       const res = await api.post(`/daily/${date}`, payload);
       if (res.data?.ok) {
         setLastSavedAt(dayjs().format("h:mm A"));
@@ -148,8 +153,10 @@ export default function App() {
     } catch (err: any) {
       console.error(err);
       Alert.alert("Error", err?.message ?? "Something went wrong");
+    } finally {
+      setSaving(false);
     }
-  };
+  };  
 
   const handleLogin = async () => {
     try {
@@ -189,7 +196,11 @@ export default function App() {
  
         {authLoading ? (
           // 1) While we check AsyncStorage for a saved userId
-          <Text>Loading…</Text>
+          <View style={{ paddingTop: 40, alignItems: "center" }}>
+            <ActivityIndicator size="large" />
+            <Text style={{ marginTop: 12, opacity: 0.7 }}>Checking session…</Text>
+          </View>
+
         ) : !userId ? (
           // 2) No user yet → show Login (hero + card)
           <>
@@ -381,7 +392,12 @@ export default function App() {
 
                   <View style={styles.hr} />
 
-                  <FancyButton title="Save Today" onPress={handleSubmit(onSubmit)} />
+                  <FancyButton
+                    title={saving ? "Saving…" : "Save Today"}
+                    onPress={handleSubmit(onSubmit)}
+                    disabled={saving}
+                  />
+
                   {lastSavedAt && (
                     <Text style={{ textAlign: "center", marginTop: 8 }}>
                       Saved at {lastSavedAt}
