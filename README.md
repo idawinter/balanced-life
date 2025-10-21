@@ -102,6 +102,31 @@ Example .env contents:
 
 ---
 
+## Screenshots
+
+### API Health (deployed)
+This confirms the backend API is reachable.
+![Deployed API Health](docs/screenshots/health-endpoint.png)
+
+### Mobile — Login
+![Login Screen](docs/screenshots/login-hero.png)
+
+### Mobile — Today Form
+Users can log sleep, mood, water, and menopause-specific symptoms.
+![Today Form](docs/screenshots/today1.png)
+![Today Form](docs/screenshots/today2.png)
+
+### Mobile — History + Chart
+Toggle Sleep/Mood for the last 14 days and view entries.
+![History & Chart](docs/screenshots/history-chart1.png)
+![History & Chart](docs/screenshots/history-chart2.png)
+
+### Tests — Passing
+Server tests (Jest + Supertest) showing green.
+![Tests Passing](docs/screenshots/tests-passing.png)
+
+---
+
 ## API Endpoints (summary)
 
 - GET /health → returns JSON like:
