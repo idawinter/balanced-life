@@ -457,6 +457,11 @@ export default function App() {
                   ))}
               </>
             )}
+                        {/* Logout button — always visible when logged in */}
+                        <View style={{ marginTop: 16 }}>
+                          <FancyButton title="Log out" variant="outline" onPress={handleLogout} />
+                        </View>
+
           </>
         )}
 
