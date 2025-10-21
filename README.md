@@ -4,6 +4,19 @@ A simple mobile app (Expo/React Native) + Node/Express API + MongoDB that tracks
 
 ---
 
+## Submission Info (Quick Start for Graders)
+
+**Live API (Render):** https://balanced-life-api.onrender.com  
+- Health check: https://balanced-life-api.onrender.com/health
+
+**Mobile app (Expo) — how to run:**
+1. Install:
+   ```bash
+   cd mobile
+   npm install
+
+---
+
 ## Live Application
 
 - API (health check): https://balanced-life-api.onrender.com/health
