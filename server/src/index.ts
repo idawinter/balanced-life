@@ -5,7 +5,7 @@ import { authRouter } from "./routes/auth";
 import { requireUser } from "./middleware/auth";
 
 const PORT = process.env.PORT || 4000;
-const MONGO_URI = process.env.MONGO_URI || "";
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "";
 
 mongoose
   .connect(MONGO_URI)

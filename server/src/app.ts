@@ -14,8 +14,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/auth", authRouter);                 // public
-app.use("/daily", requireUser, dailyRouter);  // protected
 app.use("/oura", ouraRouter);
+app.use("/daily", requireUser, dailyRouter);  // protected
 
 // Health
 app.get("/health", (_req: Request, res: Response) => {
