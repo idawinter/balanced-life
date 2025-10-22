@@ -89,8 +89,14 @@ ouraRouter.get("/pull", async (req: Request, res: Response) => {
     });
 
     return res.json({ ok: true, data: resp.data });
+  // inside ouraRouter.get("/callback", async (req, res) => { ... } catch { ... }
   } catch (e: any) {
-    console.error("Oura pull error:", e?.response?.data || e?.message);
-    return res.status(500).json({ ok: false, error: "Failed to pull Oura data" });
+    const details = e?.response?.data || { message: e?.message };
+    console.error("Oura callback error:", details);
+    // TEMP: show details in the browser so we can fix quickly
+    return res
+      .status(500)
+      .send(`<pre>Failed to connect to Oura\n\n${JSON.stringify(details, null, 2)}</pre>`);
   }
+  
 });
