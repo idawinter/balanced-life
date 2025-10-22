@@ -25,6 +25,7 @@ import { Header } from "./src/ui/Header";
 import { EmptyState } from "./src/ui/EmptyState";
 import { LoginHero } from "./src/ui/LoginHero";
 import { ActivityIndicator } from "react-native";
+import { Linking } from "react-native";
 
 type FormValues = {
   sleepHours?: string;
@@ -40,7 +41,7 @@ type FormValues = {
 };
 
 export default function App() {
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const { control, handleSubmit, reset, setValue } = useForm<FormValues>({
     defaultValues: {
       sleepHours: "",
       mood: "",
@@ -55,7 +56,7 @@ export default function App() {
     },
   });
 
-  const [view, setView] = useState<"today" | "history">("today");
+  const [view, setView] = useState<"today" | "history" | "paste">("today");
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +69,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
   const [saving, setSaving] = useState(false);
+
+  const [quickText, setQuickText] = useState<string>("");
 
   const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "(unknown)";
 
@@ -180,7 +183,112 @@ export default function App() {
   const handleLogout = async () => {
     await clearUserId();
     setUserId(null);
-  };  
+  };
+
+  // --- Quick Paste parser ---
+  const parseAndFillFromQuickText = () => {
+    const raw = (quickText || "").trim();
+    if (!raw) {
+      Alert.alert("Nothing to parse", "Paste some text first.");
+      return;
+    }
+
+    const text = raw.toLowerCase();
+    const updates: Partial<FormValues> = {};
+    const summary: string[] = [];
+
+    // Sleep: supports "7h 30m", "7.5h", "7.5 hours", "sleep 7 hours 30 minutes"
+    {
+      // 7h 30m or 7 hours 30 min
+      const m1 = text.match(/sleep.*?(\d+(?:\.\d+)?)\s*h(?:ours?)?(?:\s*(\d+)\s*m(?:in(?:utes?)?)?)?/i)
+              || text.match(/(\d+(?:\.\d+)?)\s*h(?:ours?)?(?:\s*(\d+)\s*m)/i);
+      // 7.5h or 7.5 hours (decimal)
+      const m2 = text.match(/sleep.*?(\d+(?:\.\d+)?)\s*h(?:ours?)?\b/i)
+              || text.match(/(\d+(?:\.\d+)?)\s*h(?:ours?)?\b/i);
+
+      let sleepHours: number | undefined;
+      if (m1) {
+        const h = parseFloat(m1[1]);
+        const mins = m1[2] ? parseFloat(m1[2]) : 0;
+        if (!Number.isNaN(h)) sleepHours = h + (Number.isNaN(mins) ? 0 : mins / 60);
+      } else if (m2) {
+        const h = parseFloat(m2[1]);
+        if (!Number.isNaN(h)) sleepHours = h;
+      }
+      if (sleepHours !== undefined) {
+        updates.sleepHours = String(+sleepHours.toFixed(2));
+        summary.push(`Sleep ${updates.sleepHours}h`);
+      }
+    }
+
+    // Mood: "mood 4" (1–5)
+    {
+      const m = text.match(/mood[^0-9]*([1-5])\b/);
+      if (m) {
+        updates.mood = m[1];
+        summary.push(`Mood ${updates.mood}`);
+      }
+    }
+
+    // Water: "1800 ml", "1.8L", "water 2 L"
+    {
+      const m = text.match(/(\d+(?:\.\d+)?)\s*(ml|mL|l|L)\b/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        const unit = m[2].toLowerCase();
+        if (!Number.isNaN(val)) {
+          const ml = unit === "l" ? Math.round(val * 1000) : Math.round(val);
+          updates.waterMl = String(ml);
+          summary.push(`Water ${updates.waterMl} ml`);
+        }
+      }
+    }
+
+    // Hot flashes: "hot flashes 2" or "hf 2"
+    {
+      const m = text.match(/(hot\s*flashes?|hf)[^0-9]*?(\d+)/);
+      if (m) {
+        updates.hotFlashCount = String(parseInt(m[2], 10));
+        summary.push(`Hot flashes ${updates.hotFlashCount}`);
+      }
+    }
+
+    // Night sweats: "night sweats yes/no/true/false"
+    {
+      const m = text.match(/night\s*sweats?[^a-zA-Z0-9]*(yes|no|true|false)/);
+      if (m) {
+        const v = m[1];
+        const bool = v === "yes" || v === "true";
+        updates.nightSweats = bool;
+        summary.push(`Night sweats ${bool ? "Yes" : "No"}`);
+      }
+    }
+
+    // Dryness: "dryness 0–5"
+    {
+      const m = text.match(/dryness[^0-9]*([0-5])\b/);
+      if (m) {
+        updates.drynessLevel = m[1];
+        summary.push(`Dryness ${updates.drynessLevel}`);
+      }
+    }
+
+    // Apply to form
+    let applied = 0;
+    if (updates.sleepHours !== undefined) { setValue("sleepHours", updates.sleepHours); applied++; }
+    if (updates.mood !== undefined) { setValue("mood", updates.mood); applied++; }
+    if (updates.waterMl !== undefined) { setValue("waterMl", updates.waterMl); applied++; }
+    if (updates.hotFlashCount !== undefined) { setValue("hotFlashCount", updates.hotFlashCount); applied++; }
+    if (updates.nightSweats !== undefined) { setValue("nightSweats", updates.nightSweats); applied++; }
+    if (updates.drynessLevel !== undefined) { setValue("drynessLevel", updates.drynessLevel); applied++; }
+
+    if (applied > 0) {
+      Alert.alert("Parsed!", summary.join("\n"));
+      setView("today"); // jump back so they can review/Save
+    } else {
+      Alert.alert("Nothing recognized", "Couldn’t find any numbers I know how to use.");
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
@@ -194,17 +302,16 @@ export default function App() {
           keyboardShouldPersistTaps="handled"
         >
  
-        {authLoading ? (
+ {authLoading ? (
           // 1) While we check AsyncStorage for a saved userId
           <View style={{ paddingTop: 40, alignItems: "center" }}>
             <ActivityIndicator size="large" />
             <Text style={{ marginTop: 12, opacity: 0.7 }}>Checking session…</Text>
           </View>
-
         ) : !userId ? (
           // 2) No user yet → show Login (hero + card)
           <>
-          <View style={{ height: 16 }} />
+            <View style={{ height: 16 }} />
 
             <LoginHero
               title="Balanced Life"
@@ -226,25 +333,52 @@ export default function App() {
             </SectionCard>
           </>
         ) : (
-          // 3) Logged in → show your existing app UI (PASTE your current content here)
+          // 3) Logged in → show app UI
           <>
-            {/* Toggle */}
+            {/* Top toggle */}
             <View style={styles.toggleRow}>
-              <FancyButton
-                title="Today"
-                variant={view === "today" ? "primary" : "outline"}
-                onPress={() => setView("today")}
-              />
-              <View style={{ width: 12 }} />
-              <FancyButton
-                title="History"
-                variant={view === "history" ? "primary" : "outline"}
-                onPress={() => setView("history")}
-              />
+              <View style={styles.toggleItem}>
+                <FancyButton
+                  title="Today"
+                  size="sm"
+                  variant={view === "today" ? "primary" : "outline"}
+                  onPress={() => setView("today")}
+                />
+              </View>
+
+              <View style={styles.toggleItem}>
+                <FancyButton
+                  title="History"
+                  size="sm"
+                  variant={view === "history" ? "primary" : "outline"}
+                  onPress={() => setView("history")}
+                />
+              </View>
+
+              <View style={styles.toggleItem}>
+                <FancyButton
+                  title="Paste"
+                  size="sm"
+                  variant={view === "paste" ? "primary" : "outline"}
+                  onPress={() => setView("paste")}
+                />
+              </View>
             </View>
 
+            <SectionCard title="Oura">
+              <Text style={styles.label}>
+                Connect Oura to import your recent sleep automatically.
+              </Text>
+              <FancyButton
+                title="Connect Oura"
+                onPress={() => {
+                  if (!userId) return;
+                  Linking.openURL(`${process.env.EXPO_PUBLIC_API_URL}/oura/connect?userId=${userId}`);
+                }}
+              />
+            </SectionCard>
 
-            {/* TODAY FORM */}
+            {/* TODAY / HISTORY / PASTE */}
             {view === "today" ? (
               <>
                 <SectionCard title="Basics">
@@ -392,23 +526,15 @@ export default function App() {
 
                   <View style={styles.hr} />
 
-                  <FancyButton
-                    title={saving ? "Saving…" : "Save Today"}
-                    onPress={handleSubmit(onSubmit)}
-                    disabled={saving}
-                  />
-
+                  <FancyButton title="Save Today" onPress={handleSubmit(onSubmit)} />
                   {lastSavedAt && (
                     <Text style={{ textAlign: "center", marginTop: 8 }}>
                       Saved at {lastSavedAt}
                     </Text>
                   )}
-
                 </SectionCard>
-
               </>
-            ) : (
-              // HISTORY LIST
+            ) : view === "history" ? (
               <>
                 {!loading && !error && history.length > 0 && (
                   <SectionCard title={chartMetric === "sleep" ? "Sleep Hours (last 14 days)" : "Mood (last 14 days)"}>
@@ -472,12 +598,33 @@ export default function App() {
                     </View>
                   ))}
               </>
-            )}
-                        {/* Logout button — always visible when logged in */}
-                        <View style={{ marginTop: 16 }}>
-                          <FancyButton title="Log out" variant="outline" onPress={handleLogout} />
-                        </View>
+            ) : (
+              // NEW: Quick Paste
+              <SectionCard title="Quick Paste (beta)">
+                <Text style={styles.label}>
+                  Paste Oura (or notes) text below. We’ll try to parse the numbers and fill the Today form.
+                </Text>
 
+                <TextInput
+                  style={[styles.input, { height: 140, textAlignVertical: "top" }]}
+                  multiline
+                  placeholder="e.g. Sleep 7h 30m, Mood 4, Water 1.8L, Hot flashes 2, Night sweats yes, Dryness 2"
+                  value={quickText}
+                  onChangeText={setQuickText}
+                />
+
+                <View style={{ height: 8 }} />
+                <FancyButton
+                  title="Parse & Fill Form"
+                  onPress={parseAndFillFromQuickText}
+                />
+              </SectionCard>
+            )}
+
+            {/* Logout button — always visible when logged in */}
+            <View style={{ marginTop: 16 }}>
+              <FancyButton title="Log out" variant="outline" onPress={handleLogout} />
+            </View>
           </>
         )}
 
@@ -534,7 +681,14 @@ const styles = StyleSheet.create({
   },
   toggleRow: {
     flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 12,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 16,  // keeps away from screen edges
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  toggleItem: {
+    flex: 1,                // each button gets equal width
   },  
 });
